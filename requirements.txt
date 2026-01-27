@@ -1,0 +1,12 @@
+langchain==0.2.16
+langchain-community==0.2.16
+langchain-google-genai>=1.0.7
+streamlit
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
+python-dotenv
+yt-dlp
+duckduckgo-search
+requests
+tenacity

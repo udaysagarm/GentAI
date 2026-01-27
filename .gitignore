@@ -1,0 +1,16 @@
+# Environment Variables
+.env
+
+# Google Credentials
+credentials.json
+token.json
+
+# Virtual Environment
+venv/
+
+# Python Cache
+__pycache__/
+*.pyc
+
+# OS Specific
+.DS_Store
