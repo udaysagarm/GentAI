@@ -14,12 +14,21 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = [] # For LangChain
 
 # Initialize Background Scheduler
+# Initialize Background Scheduler
 from scheduler_engine import get_scheduler
-if "scheduler_started" not in st.session_state:
-    scheduler = get_scheduler()
-    if not scheduler.running:
-        scheduler.start()
-    st.session_state.scheduler_started = True
+scheduler = get_scheduler()
+
+# Sidebar for Active Schedules
+st.sidebar.title("⏳ Active Schedules")
+scheduler = get_scheduler()
+jobs = scheduler.get_jobs()
+if jobs:
+    for job in jobs:
+        st.sidebar.markdown(f"**Task:** {job.name}")
+        st.sidebar.caption(f"Next Run: {job.next_run_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        st.sidebar.divider()
+else:
+    st.sidebar.info("No tasks currently scheduled.")
 
 # Display chat messages from history on app rerun
 for message in st.session_state.messages:
@@ -54,6 +63,9 @@ if prompt := st.chat_input("What can I do for you today?"):
             # Update LangChain history
             st.session_state.chat_history.append(HumanMessage(content=prompt))
             st.session_state.chat_history.append(AIMessage(content=response_text))
+            
+            # Force UI refresh to show new scheduled tasks immediately
+            st.rerun()
             
         except Exception as e:
             st.error(f"An error occurred: {e}")

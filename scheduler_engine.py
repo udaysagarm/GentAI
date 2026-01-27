@@ -1,19 +1,18 @@
 import logging
 from apscheduler.schedulers.background import BackgroundScheduler
 from tools.gmail import send_email
+import streamlit as st
+from tzlocal import get_localzone
 
 # Configure logging
 logging.basicConfig()
 logging.getLogger('apscheduler').setLevel(logging.WARNING)
 
-# Singleton scheduler instance
-_scheduler = None
-
+@st.cache_resource
 def get_scheduler():
-    global _scheduler
-    if _scheduler is None:
-        _scheduler = BackgroundScheduler()
-    return _scheduler
+    scheduler = BackgroundScheduler(timezone=str(get_localzone()))
+    scheduler.start()
+    return scheduler
 
 def execute_scheduled_task(task_prompt: str, model_name: str = "gemini-2.0-flash"):
     """

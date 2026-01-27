@@ -11,3 +11,4 @@ duckduckgo-search
 requests
 tenacity
 apscheduler
+tzlocal
