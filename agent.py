@@ -1,16 +1,21 @@
 import os
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.agents import AgentExecutor, create_tool_calling_agent
+from langchain_classic.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.prompts import ChatPromptTemplate
 from tenacity import retry, stop_after_attempt, wait_random_exponential, retry_if_exception_type, RetryError
 from google.api_core.exceptions import ResourceExhausted
 
 # Import tools
-from tools.gmail import get_recent_emails, search_emails, send_email
-from tools.docs import create_new_doc, read_doc_content
+from tools.gmail_ops import create_gmail_draft, read_recent_emails, read_email_content, save_email_attachment
+from tools.doc_ops import (
+    create_document, read_document, append_to_document, overwrite_document, 
+    delete_document, restore_document, create_folder, move_file,
+    search_drive, list_recent_files, read_pdf_from_drive, upload_file_to_drive, 
+    empty_trash, list_shared_files
+)
 from tools.drive import list_drive_files, delete_file_by_name
-from tools.calendar import list_upcoming_events, create_calendar_event
+from tools.calendar import list_upcoming_events, create_calendar_event, delete_event, update_event
 from tools.youtube import search_videos
 from tools.search import google_search
 from tools.scheduler import schedule_task, list_scheduled_tasks
@@ -21,7 +26,7 @@ from langchain_community.utilities import TextRequestsWrapper
 # Load environment variables
 load_dotenv()
 
-def get_agent_executor(model_name: str = "gemini-1.5-flash-001"):
+def get_agent_executor(model_name: str = "gemini-2.0-flash-lite"):
     """Initializes and returns the agent executor."""
     
     if not os.getenv("GEMINI_API_KEY"):
@@ -34,17 +39,32 @@ def get_agent_executor(model_name: str = "gemini-1.5-flash-001"):
         google_api_key=os.getenv("GEMINI_API_KEY")
     )
 
+
     # 2. Define tools
     tools = [
-        get_recent_emails,
-        search_emails,
-        send_email,
-        create_new_doc,
-        read_doc_content,
+        create_gmail_draft,
+        read_recent_emails,
+        read_email_content,
+        save_email_attachment,
+        create_document,
+        read_document,
+        append_to_document,
+        overwrite_document,
+        restore_document,
+        create_folder,
+        move_file,
+        search_drive,
+        list_recent_files,
+        read_pdf_from_drive,
+        upload_file_to_drive,
+        empty_trash,
+        list_shared_files,
         list_drive_files,
         delete_file_by_name,
         list_upcoming_events,
         create_calendar_event,
+        delete_event,
+        update_event,
         search_videos,
         google_search,
         schedule_task,
@@ -57,22 +77,34 @@ def get_agent_executor(model_name: str = "gemini-1.5-flash-001"):
     # 3. Create the prompt
     prompt = ChatPromptTemplate.from_messages(
         [
-            ("system", "You are Gent AI, a helpful personal assistant. "
-                       "You have access to the user's Google account (Gmail, Docs, Drive, Calendar, YouTube) "
-                       "and can perform actions on their behalf. You can also delete files from Drive by moving them to the trash. "
-                       "Current Date/Time: {date}\n\n"
-                       "STRICT RULES:\n"
-                       "1. FRESHNESS RULE: If the user asks for 'latest', 'current', 'recent', 'new' items, or asks about 'today', "
+            ("system", "You are Gent AI, a smart assistant.\n\n"
+                       "CRITICAL CONTEXT:\n"
+                       "- Current Date & Time: {date}\n"
+                       "- User's Timezone: America/Detroit (EST)\n\n"
+                       "INSTRUCTIONS:\n"
+                       "- If the user says 'tomorrow', 'next week', or 'in 2 days', CALCULATE the date yourself based on the Current Date above. "
+                       "Do NOT ask the user for the date.\n"
+                       "- FRESHNESS RULE: If the user asks for 'latest', 'current', 'recent', 'new' items, or asks about 'today', "
                        "you MUST ignore conversation history and execute the relevant Tool (e.g., Gmail, Calendar) to fetch real-time data. "
                        "Do not rely on past turn data for these queries.\n"
-                       "2. NO ASSUMPTIONS: Never assume the state of the user's inbox, drive, or calendar. Always check with a tool.\n"
-                       "3. EXPLICIT ACTION: When fetching data, briefly explicitly state what you are doing (e.g. 'Checking Gmail for latest messages...').\n"
-                       "4. EMAIL SUMMARY: When asked for recent emails, summarize the top few results, explicitly noting which ones are Read vs. Unread.\n"
-                       "5. TIME & SCHEDULING: If the user mentions specific future times (like 'at 6pm', 'in 2 hours', 'every day'), you MUST use the `schedule_task` tool. "
+                       "- NO ASSUMPTIONS: Never assume the state of the user's inbox, drive, or calendar. Always check with a tool.\n"
+                       "- EXPLICIT ACTION: When fetching data, briefly explicitly state what you are doing (e.g. 'Checking Gmail for latest messages...').\n"
+                       "- EMAIL SUMMARY: When asked for recent emails, summarize the top few results, explicitly noting which ones are Read vs. Unread.\n"
+                       "- TIME & SCHEDULING: If the user mentions specific future times (like 'at 6pm', 'in 2 hours', 'every day'), you MUST use the `schedule_task` tool. "
                        "If the user asks 'what is scheduled' or 'show future tasks', use the `list_scheduled_tasks` tool. Do not try to wait yourself.\n"
-                       "6. WEATHER QUERIES: When asked about weather, ALWAYS use the `get_current_weather` tool instead of Google Search.\n"
-                       "7. CONFIRMATION PROTOCOL: You are FORBIDDEN from confirming an action (like sending email) until you receive a tool return value. "
-                       "If tool execution fails, report the error. Do not assume success."),
+                       "- WEATHER QUERIES: When asked about weather, ALWAYS use the `get_current_weather` tool instead of Google Search.\n"
+                       "- CONFIRMATION PROTOCOL: You are FORBIDDEN from confirming an action (like sending email) until you receive a tool return value. "
+                       "If tool execution fails, report the error. Do not assume success.\n"
+                       "8. CALENDAR UPDATES: When the user asks to RESCHEDULE, MOVE, or DELAY a meeting, you MUST use the `update_event` tool. "
+                       "NEVER use `create_event` for existing meetings. When deleting, use `delete_event`.\n"
+                       "9. GOOGLE DOCS: You cannot 'edit' a specific sentence. You can only READ the full doc, APPEND text to the end, or REWRITE the entire doc. "
+                       "If the user says 'change', 'replace', or 'rewrite' the entire doc, use `overwrite_document`. If they just want to add notes, use `append_to_document`. "
+                       "To write a new report, use `create_document`.\n"
+                       "10. RESTORE/RECOVER: If the user asks to 'bring back', 'recover', or 'restore' a deleted file, use the `restore_document` tool.\n"
+                       "11. ORGANIZATION: You can create folders and move files. When creating a new document, check if the user specified a destination folder.\n"
+                       "12. DRIVE CAPABILITIES: You can read PDFs directly, search file contents, and list recent work. BE CAREFUL with `empty_trash` - ask for confirmation first.\n"
+                       "13. GMAIL: Default to `create_gmail_draft` for writing emails unless the user explicitly commands 'SEND'. When reading, summarize the sender and subject.\n"
+                       "14. EMAIL READING PROTOCOL: When the user asks 'what does it say' or for details, use `get_email_full_content`. DO NOT output the full raw text unless asked. INSTEAD, summarize key points, dates, and action items."),
             ("placeholder", "{chat_history}"),
             ("human", "{input}"),
             ("placeholder", "{agent_scratchpad}"),
@@ -82,15 +114,10 @@ def get_agent_executor(model_name: str = "gemini-1.5-flash-001"):
     # 4. Create the agent
     agent = create_tool_calling_agent(llm, tools, prompt)
     
+
     # 5. Create the executor
     agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
     return agent_executor
-
-    return agent_executor
-
-from tenacity import retry, stop_after_attempt, wait_random_exponential, retry_if_exception_type, RetryError
-
-# ... imports ...
 
 @retry(
     retry=retry_if_exception_type(ResourceExhausted),
@@ -111,9 +138,9 @@ def decide_model(user_query: str) -> str:
     if not os.getenv("GEMINI_API_KEY"):
         raise ValueError("GEMINI_API_KEY not found in environment variables.")
 
-    # Use 2.0-flash as the router
+    # Use 2.0-flash-lite as the router
     llm_flash = ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash",
+        model="gemini-2.0-flash-lite",
         temperature=0.7,
         google_api_key=os.getenv("GEMINI_API_KEY")
     )
@@ -145,8 +172,8 @@ def run_agent(input_text: str, chat_history: list = []):
     
     # Map to actual available models
     model_name_map = {
-        "FLASH": "gemini-2.0-flash",
-        "PRO": "gemini-2.5-pro"
+        "FLASH": "gemini-2.0-flash-lite",
+        "PRO": "gemini-2.0-flash"
     }
     selected_model = model_name_map.get(model_type, "gemini-2.0-flash")
     
@@ -158,7 +185,7 @@ def run_agent(input_text: str, chat_history: list = []):
             executor, 
             input_text, 
             chat_history, 
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            datetime.now().strftime("%A, %B %d, %Y at %I:%M %p")
         )
         # Return both output and model used
         return {

@@ -2,9 +2,10 @@ import streamlit as st
 from agent import run_agent
 from langchain_core.messages import HumanMessage, AIMessage
 
-st.set_page_config(page_title="Gent AI", page_icon="🤖")
+st.set_page_config(page_title="Gent AI", page_icon="assets/favicon.png")
+print("Gent AI (Model: Gemini 2.0)")
 
-st.title("Gent AI 🤖")
+st.title("Gent AI")
 st.subheader("Your Personal Assistant")
 
 # Initialize chat history

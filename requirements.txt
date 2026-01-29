@@ -1,5 +1,5 @@
-langchain==0.2.16
-langchain-community==0.2.16
+langchain-classic
+langchain-community
 langchain-google-genai>=1.0.7
 streamlit
 google-api-python-client
