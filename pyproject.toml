@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gentai"
+version = "0.1.0"
+description = "The Modular AI Operating System"
+dependencies = [
+    "langchain",
+    "langchain-community", 
+    "google-api-python-client",
+    "streamlit", 
+    "python-dotenv"
+]
+
+[project.scripts]
+gent = "gentai.cli:main"
