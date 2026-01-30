@@ -2,7 +2,7 @@ import io
 import pypdf
 from googleapiclient.http import MediaFileUpload
 from langchain.tools import tool
-from tools.utils import get_docs_service, get_drive_service
+from moth.tools.utils import get_docs_service, get_drive_service
 
 def get_doc_id(doc_name: str):
     """Helper: Finds a Google Doc ID by name."""

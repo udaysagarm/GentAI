@@ -2,17 +2,17 @@ import sys
 import re
 from datetime import datetime, timedelta
 # Import tools
-from tools.calendar import create_calendar_event, list_upcoming_events, update_event, delete_event
-from tools.doc_ops import (
+from moth.tools.calendar import create_calendar_event, list_upcoming_events, update_event, delete_event
+from moth.tools.doc_ops import (
     create_document, read_document, append_to_document, overwrite_document, 
     delete_document, create_folder, move_file, search_drive
 )
-from tools.gmail_ops import (
+from moth.tools.gmail_ops import (
     create_gmail_draft, read_recent_emails, read_email_content, save_email_attachment
 )
-from tools.drive import delete_file_by_name
+from moth.tools.drive import delete_file_by_name
 # Import utils for test verification logic
-from tools.utils import get_gmail_service
+from moth.tools.utils import get_gmail_service
 
 # ANSI Colors
 GREEN = "\033[92m"

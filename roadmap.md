@@ -1,12 +1,12 @@
-# GentAI Roadmap 🚀
+# Moth AI Roadmap 🦋
 
 ## Phase 1: Professional Packaging (Current)
-- [ ] Refactor into standard Python package structure (`gentai/` folder).
+- [ ] Refactor into standard Python package structure (`moth/` folder).
 - [ ] Add `pyproject.toml` configuration.
-- [ ] Create `gent` CLI command using entry points.
+- [ ] Create `moth` CLI command using entry points.
 
 ## Phase 2: The "App Store" Architecture
-- [ ] Build `gent install <feature>` logic.
+- [ ] Build `moth install <feature>` logic.
 - [ ] Create a "Plugin Registry" (JSON) to host community features.
 - [ ] Implement Dynamic Plugin Loading (start without heavy libraries).
 

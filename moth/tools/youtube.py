@@ -1,5 +1,5 @@
 from langchain.tools import tool
-from tools.utils import get_youtube_service
+from moth.tools.utils import get_youtube_service
 
 @tool
 def search_videos(query: str, max_results: int = 5) -> str:

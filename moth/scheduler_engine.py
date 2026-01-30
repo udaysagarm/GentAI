@@ -1,6 +1,6 @@
 import logging
 from apscheduler.schedulers.background import BackgroundScheduler
-from tools.gmail import send_email
+from moth.tools.gmail_ops import send_email
 import streamlit as st
 from tzlocal import get_localzone
 
@@ -10,7 +10,17 @@ logging.getLogger('apscheduler').setLevel(logging.WARNING)
 
 @st.cache_resource
 def get_scheduler():
-    scheduler = BackgroundScheduler(timezone=str(get_localzone()))
+    from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
+    
+    # Persistence config: Save jobs to SQLite database 'scheduled_tasks.db'
+    jobstores = {
+        'default': SQLAlchemyJobStore(url='sqlite:///scheduled_tasks.db')
+    }
+    
+    scheduler = BackgroundScheduler(
+        jobstores=jobstores, 
+        timezone=str(get_localzone())
+    )
     scheduler.start()
     return scheduler
 
@@ -55,7 +65,20 @@ def execute_scheduled_task(task_prompt: str, model_name: str = "gemini-2.0-flash
         profile = service.users().getProfile(userId='me').execute()
         user_email = profile['emailAddress']
         
-        send_email(to=user_email, subject=subject, message_text=email_body)
+        # FIX: Call the tool using .invoke() with a dictionary, not as a function with kwargs
+        # This resolves the "unexpected keyword argument" TypeError with LangChain tools
+        email_args = {
+            "to": user_email,
+            "subject": subject,
+            "message_text": email_body
+        }
+        
+        # Robustness: Handle potential argument mismatch if tool expects 'to_recipients'
+        # (User requested check for name mismatch, e.g. create_gmail_draft)
+        if "to" in email_args and hasattr(send_email, "args_schema") and "to_recipients" in send_email.args_schema.schema()["properties"]:
+             email_args["to_recipients"] = email_args.pop("to")
+
+        send_email.invoke(email_args)
         print("✅ Scheduled task executed and email sent.")
 
     except Exception as e:

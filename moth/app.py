@@ -2,10 +2,10 @@ import streamlit as st
 from agent import run_agent
 from langchain_core.messages import HumanMessage, AIMessage
 
-st.set_page_config(page_title="Gent AI", page_icon="assets/favicon.png")
-print("Gent AI (Model: Gemini 2.0)")
+st.set_page_config(page_title="Moth AI", page_icon="🦋")
+print("Moth AI (Model: Gemini 2.0)")
 
-st.title("Gent AI")
+st.title("Moth AI")
 st.subheader("Your Personal Assistant")
 
 # Initialize chat history
@@ -56,17 +56,12 @@ if prompt := st.chat_input("What can I do for you today?"):
     with st.spinner("Thinking..."):
         try:
             # Generate response
-            result = run_agent(prompt, st.session_state.chat_history)
+            response_text = run_agent(prompt, st.session_state.chat_history)
             
-            # Unpack result
-            response_text = result["output"]
-            model_used = result["model_used"]
-
             # Display assistant response in chat message container
             with st.chat_message("assistant"):
                 st.markdown(response_text)
-                if model_used != "UNKNOWN":
-                    st.caption(f"Answered by: Gemini {model_used}")
+            
             
             # Add assistant response to chat history
             st.session_state.messages.append({"role": "assistant", "content": response_text})
@@ -79,4 +74,7 @@ if prompt := st.chat_input("What can I do for you today?"):
             st.rerun()
             
         except Exception as e:
+            import traceback
+            traceback.print_exc()
+            print(f"DEBUG: App Error Inputs - Prompt: {prompt}, History Type: {type(st.session_state.chat_history)}")
             st.error(f"An error occurred: {e}")

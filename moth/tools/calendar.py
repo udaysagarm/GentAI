@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from langchain.tools import tool
-from tools.utils import get_calendar_service
+from moth.tools.utils import get_calendar_service
 
 @tool
 def list_upcoming_events(max_results: int = 10) -> str:

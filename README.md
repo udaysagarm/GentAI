@@ -1,6 +1,6 @@
-# Gent AI 
+# Moth
 
-Gent AI is a personal assistant powered by Google's Gemini 2.0 Flash model. It integrates directly with your Google Workspace account to help you manage emails, documents, files, calendar events, and more through a simple chat interface.
+Moth is a personal assistant powered by Google's Gemini 2.0 Flash model. It integrates directly with your Google Workspace account to help you manage emails, documents, files, calendar events, and more through a simple chat interface.
 
 ## ✨ Features
 

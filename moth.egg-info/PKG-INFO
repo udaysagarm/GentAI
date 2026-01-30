@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: moth
+Version: 0.1.0
+Summary: The nocturnal AI assistant for developers.
+Requires-Dist: langchain==0.3.0
+Requires-Dist: langchain-community==0.3.0
+Requires-Dist: langchain-core==0.3.0
+Requires-Dist: langchain-google-genai==2.0.0
+Requires-Dist: google-api-python-client
+Requires-Dist: streamlit
+Requires-Dist: python-dotenv

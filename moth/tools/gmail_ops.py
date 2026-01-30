@@ -2,8 +2,9 @@ from langchain.tools import tool
 import base64
 import email
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from googleapiclient.http import MediaIoBaseUpload
-from tools.utils import get_gmail_service, get_drive_service
+from moth.tools.utils import get_gmail_service, get_drive_service
 import io
 import re
 import html
@@ -69,7 +70,11 @@ def extract_all_text(payload):
 
 @tool
 def create_gmail_draft(to_recipients: str, subject: str, body: str) -> str:
-    """Creates a draft email in the user's Gmail account."""
+    """
+    Creates a DRAFT email. 
+    Use this tool ONLY if the user specifically asks to "draft", "prepare", or "compose" (without sending).
+    DO NOT use this if the user asks to "send" an email.
+    """
     try:
         service = get_gmail_service()
         message = MIMEText(body)
@@ -81,24 +86,51 @@ def create_gmail_draft(to_recipients: str, subject: str, body: str) -> str:
     except Exception as e:
         return f"Error: {e}"
 
+# Remove the redundant 'send_email' tool to avoid confusion if it exists, 
+# or just ensure send_gmail_message is the primary one.
+# We will leave send_email for backward compatibility but emphasize send_gmail_message.
+
+@tool
+def send_gmail_message(to_recipients: str, subject: str, body: str) -> str:
+    """
+    SENDS an email immediately to the specified recipient(s).
+    Use this when the user explicitly asks to 'SEND' an email.
+    DO NOT use this for drafting.
+    """
+
 @tool
 def read_recent_emails(limit: int = 5) -> str:
     """Returns a summary (Sender, Subject) of the recent emails."""
     try:
         service = get_gmail_service()
-        results = service.users().messages().list(userId='me', maxResults=limit, labelIds=['INBOX']).execute()
+        # Changed from labelIds=['INBOX'] to q='category:primary' for better coverage
+        print(f"DEBUG: Fetching top {limit} emails from category:primary...")
+        results = service.users().messages().list(userId='me', q='category:primary', maxResults=limit).execute()
+        
         messages = results.get('messages', [])
-        if not messages: return "No recent emails."
+        if not messages: 
+            print("DEBUG: No messages found in API response.")
+            return "No recent emails found in Primary inbox."
 
         summary = []
         for msg in messages:
+            # We need to fetch the payload to get headers
             m = service.users().messages().get(userId='me', id=msg['id'], format='full').execute()
-            headers = m['payload']['headers']
+            headers = m.get('payload', {}).get('headers', [])
+            
             subject = next((h['value'] for h in headers if h['name'] == 'Subject'), '(No Subject)')
             sender = next((h['value'] for h in headers if h['name'] == 'From'), '(Unknown)')
+            
+            # Helper to clean up "Sender Name <email@example.com>" to just "Sender Name" if long
+            if '<' in sender:
+                sender = sender.split('<')[0].strip().replace('"', '')
+                
             summary.append(f"ID: {msg['id']} | From: {sender} | Subj: {subject}")
+            
+        print(f"DEBUG: Found {len(summary)} emails.")
         return "\n".join(summary)
     except Exception as e:
+        print(f"ERROR in read_recent_emails: {e}")
         return f"Error: {e}"
 
 @tool
@@ -186,3 +218,49 @@ def save_email_attachment(email_query: str, attachment_name: str, drive_folder_n
         return f"Saved to Drive (ID: {f.get('id')})"
     except Exception as e:
         return f"Error: {e}"
+
+def create_message(sender, to, subject, message_text):
+    """Create a message for an email."""
+    # Create a multipart message
+    message = MIMEMultipart("alternative")
+    message['to'] = to
+    message['from'] = sender
+    message['subject'] = subject
+
+    # Create plain text and HTML versions
+    part1 = MIMEText(message_text, 'plain') 
+    part2 = MIMEText(message_text, 'html')
+
+    # Attach parts into message container
+    message.attach(part1)
+    message.attach(part2)
+
+    return {'raw': base64.urlsafe_b64encode(message.as_bytes()).decode()}
+
+@tool
+def send_email(to: str, subject: str, message_text: str) -> str:
+    """Sends an email to the specified recipient."""
+    try:
+        service = get_gmail_service()
+        print(f"DEBUG: Attempting to send email to {to} with subject '{subject}'...")
+        message = create_message('me', to, subject, message_text)
+        sent_message = service.users().messages().send(userId='me', body=message).execute()
+        print(f"DEBUG: Email sent successfully! ID: {sent_message['id']}")
+        return f"Email sent successfully! Id: {sent_message['id']}"
+    except Exception as e:
+        return f"Error sending email: {e}"
+
+@tool
+def send_gmail_message(to_recipients: str, subject: str, body: str) -> str:
+    """
+    Sends an email immediately to the specified recipient(s).
+    Use this when the user explicitly asks to SEND an email, not just draft it.
+    """
+    try:
+        service = get_gmail_service()
+        print(f"DEBUG: sending direct email to {to_recipients}...")
+        message = create_message('me', to_recipients, subject, body)
+        sent_message = service.users().messages().send(userId='me', body=message).execute()
+        return f"Email sent successfully! ID: {sent_message['id']}"
+    except Exception as e:
+        return f"Error sending email: {e}"

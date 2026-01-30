@@ -1,5 +1,5 @@
 from googleapiclient.discovery import build
-from auth import authenticate_google_services_local
+from moth.auth import authenticate_google_services_local
 
 _creds = None
 

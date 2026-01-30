@@ -3,16 +3,21 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "gentai"
+name = "moth"
 version = "0.1.0"
-description = "The Modular AI Operating System"
+description = "The nocturnal AI assistant for developers."
 dependencies = [
-    "langchain",
-    "langchain-community", 
+    "langchain==0.3.0",
+    "langchain-community==0.3.0", 
+    "langchain-core==0.3.0",
+    "langchain-google-genai==2.0.0",
     "google-api-python-client",
     "streamlit", 
     "python-dotenv"
 ]
 
 [project.scripts]
-gent = "gentai.cli:main"
+moth = "moth.cli:main"
+
+[tool.setuptools]
+packages = ["moth"]
