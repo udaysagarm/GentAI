@@ -15,3 +15,19 @@ __pycache__/
 # OS Specific
 .DS_Store
 assets/
+
+# Databases (Critical to ignore)
+*.db
+moth_memory.db
+scheduled_tasks.db
+
+# Build Artifacts
+moth.egg-info/
+build/
+dist/
+eggs/
+.eggs/
+
+# IDE Settings
+.vscode/
+.idea/
